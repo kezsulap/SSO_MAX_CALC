@@ -271,28 +271,69 @@
       for (var s = 0; s <= 7; ++s) for (var h = 0; s + h <= 13 && h <= 7; ++h) for (var d = 0; s + d + h <= 13 && d <= 7; ++d) {
         var c = 13 - s - h - d;
 				if (c > 7) continue;
+				var all = [c, d, h, s];
+				all.sort((a, b) => a - b);
+				if (all[2] + all[3] > 11) continue; 
         var match = 0;
-        if (partner_opening_id == 1) { //1♥
-          match = ((h <= 1 && s >= 3 && s <= 5) || (h >= 6 && s <= 3)) && ((s <= 1) + (h <= 1) + (d <= 1) + (c <= 1)) <= 1;
-        }
-        else if (partner_opening_id == 2) { //1♠
-          match = ((s <= 1 && h >= 3 && h <= 5) || (s >= 6 && h <= 3)) && ((s <= 1) + (h <= 1) + (d <= 1) + (c <= 1)) <= 1;
-        }
-        else if (partner_opening_id == 3) { //1NT
-          match = (h >= 4 && s >= 4 && (h >= 5 || s >= 5) && (h + s) <= 10) || (c >= 4 && d >= 4 && (c + d) == 10 && h >= 1 && s >= 1);
-        }
-        else if (partner_opening_id == 4) { //2♣
-          match = (h >= 3 && h <= 4 && s >= 3 && s <= 4 && (c <= 1 || d <= 1) && c <= 6 && d <= 6);
-        }
-        else if (partner_opening_id == 5) { //2♦
-          match = ((h == 5 && s == 3) || (h == 3 && s == 5)) && ((c == 4 && d == 1) || (c == 1 && d == 4));
-        }
-        else if (partner_opening_id == 6) { //2♥
-          match = (h >= 2 && s >= 2 && ((c == 5 && h == 5) || (d == 5 && s == 5) || (c == 6 && h == 4 && d == 1) || (d == 6 && s == 4 && c == 1)));
-        }
-        else if (partner_opening_id == 7) { //2♠
-          match = (h >= 2 && s >= 2 && ((c == 5 && s == 5) || (d == 5 && h == 5) || (c == 6 && s == 4 && d == 1) || (d == 6 && h == 4 && c == 1)));
-        }
+				function is_equal(a, b) {
+					a.sort((x, y) => x - y);
+					b.sort((x, y) => x - y);
+					if (a.length != b.length) throw 'Comparison of arrays with different length';
+					for (let i = 0; i < a.length; ++i) if (a[i] != b[i]) return false;
+					return true;
+				};
+				function _1major(open, other, m1, m2, skip) {
+					return (open >= 6 && other <= 3) || (open <= 1 && other >= 3 && other <= 5 && (skip ? (m1 != 5 && m2 != 5) || other != 5 : true))
+				};
+				function base1c() {
+					if (is_equal([c, d], [6, 1]) && is_equal([h, s], [4, 2])) return true;
+					return c >= 2 && d >= 2 && h >= 2 && s >= 2 && c <= 6 && d <= 6 && h <= 5 && s <= 5 && !is_equal([h, s], [5, 4])
+				}
+				function _2hs(m1, m2, M1, M2, skip) {
+					return ((m1 >= 5 && M1 == 5) || (m2 >= 5 && M2 == 5)) && (m1 <= 1 || m2 <= 1) && (skip ? !is_equal([c, d, h, s], [5, 5, 2, 1]) : true);
+				};
+				if (partner_opening_id === "1c" ) {
+					match = base1c() || (is_equal([c, d], [4, 1]) && is_equal([h, s], [5, 3]));
+				}
+				if (partner_opening_id === "1cno") {
+					match = base1c();
+				}
+				if (partner_opening_id === "1h" ) {
+					match = _1major(h, s, c, d, false);
+				}
+				if (partner_opening_id === "1hp") {
+					match = _1major(h, s, c, d, true);
+				}
+				if (partner_opening_id === "1s" ) {
+					match = _1major(s, h, c, d, false);
+				}
+				if (partner_opening_id === "1sp") {
+					match = _1major(s, h, c, d, true);
+				}
+				if (partner_opening_id === "1n" ) {
+					match = (h >= 4 && s >= 4 && (h >= 5 || s >= 5) && (h + s) <= 10) || (c >= 4 && d >= 4 && (c + d) == 10 && h >= 1 && s >= 1);
+				}
+				if (partner_opening_id === "2c" ) {
+					match = (h >= 3 && h <= 4 && s >= 3 && s <= 4 && (c <= 1 || d <= 1) && c <= 6 && d <= 6);
+				}
+				if (partner_opening_id === "2dold") {
+					match = is_equal([c, d], [1, 4]) && is_equal([h, s], [5, 3]);
+				}
+				if (partner_opening_id === "2dnew") {
+					match = (s != 3 && h != 3) && (c == 5 || d == 5) && (h == 5 || s == 5);
+				}
+				if (partner_opening_id === "2h" ) {
+					match = _2hs(c, d, h, s, false);
+				}
+				if (partner_opening_id === "2hp") {
+					match = _2hs(c, d, h, s, true);
+				}
+				if (partner_opening_id === "2s" ) {
+					match = _2hs(c, d, s, h, false);
+				}
+				if (partner_opening_id === "2sp") {
+					match = _2hs(c, d, s, h, true);
+				}
         if (match) partner_shapes.push([s, h, d, c]);
       }
 			var processed_shapes = [];
@@ -404,13 +445,20 @@
 <input type="submit" value="Deal a random hand with given shape" onclick="pick_random_hand_with_shape()"><input type="text" id="my_shape">
 </td>
 <td valign="top">
-<input type="radio" name="opening" value="1"> 1<font color="red">♥</font><br>
-<input type="radio" name="opening" value="2"> 1<font color="blue">♠</font><br>
-<input type="radio" name="opening" value="3"> 1NT<br>
-<input type="radio" name="opening" value="4"> 2<font color="#005416">♣</font><br>
-<input type="radio" name="opening" value="5"> 2<font color="#ff6600">♦</font><br>
-<input type="radio" name="opening" value="6"> 2<font color="red">♥</font><br>
-<input type="radio" name="opening" value="7"> 2<font color="blue">♠</font><br>
+<input type="radio" name="opening" value="1c"> 1<font color="#005416">♣</font><br>
+<input type="radio" name="opening" value="1cno"> 1<font color="#005416">♣</font> (no (53)(14))<br>
+<input type="radio" name="opening" value="1h"> 1<font color="red">♥</font><br>
+<input type="radio" name="opening" value="1hp"> 1<font color="red">♥</font> except shapes for 2<font color="ff6600">♦</font><br>
+<input type="radio" name="opening" value="1s"> 1<font color="blue">♠</font><br>
+<input type="radio" name="opening" value="1sp"> 1<font color="blue">♠</font> except shapes for 2<font color="ff6600">♦</font><br>
+<input type="radio" name="opening" value="1n"> 1NT<br>
+<input type="radio" name="opening" value="2c"> 2<font color="#005416">♣</font><br>
+<input type="radio" name="opening" value="2dold"> 2<font color="#ff6600">♦</font> old<br>
+<input type="radio" name="opening" value="2dnew"> 2<font color="#ff6600">♦</font> new<br>
+<input type="radio" name="opening" value="2h"> 2<font color="red">♥</font><br>
+<input type="radio" name="opening" value="2hp"> 2<font color="red">♥</font> except shapes for 2<font color="ff6600">♦</font><br>
+<input type="radio" name="opening" value="2s"> 2<font color="blue">♠</font><br>
+<input type="radio" name="opening" value="2sp"> 2<font color="blue">♠</font> except shapes for 2<font color="ff6600">♦</font><br>
 </td>
 <td valign="top">
 <input type="radio" name="range" value="0" onclick="show_range()"> 6-10 <br>
