@@ -1,0 +1,428 @@
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script>
+	var arrow_clicked='↷';
+	var arrow_not_clicked='↶';
+	var arrow_active = new Array(4).fill(0);
+	var ace = 12, king = 11, queen = 10, jack = 9, ten = 8;
+	var suit_str = ['<font color="blue">♠</font>', '<font color="red">♥</font>', '<font color="#ff6600">♦</font>', '<font color="#005416">♣</font>'];
+	var suit_color = ['blue', 'red', '#ff6600', '005416'];
+	function save_hand() {
+		for (var i = 0; i < 4; ++i) 
+			window.localStorage.setItem('suit' + i, document.getElementById('suit' + i).value);
+	}
+	function run_swap(i) {
+		var j = -1;
+		for (var x = 0; x < 4; ++x) {
+			if (arrow_active[x]) {
+				console.assert(j == -1);
+				j = x;
+			}
+		}
+		if (j == i) reset_swap();
+		else if (j == -1) {
+			arrow_active[i] = 1;
+			document.getElementById('swap' + i).value = arrow_clicked;
+		}
+		else {
+			var s1 = document.getElementById('suit' + i);
+			var s2 = document.getElementById('suit' + j);
+			var temp = s1.value;
+			s1.value = s2.value;
+			s2.value = temp;
+			reset_swap();
+		}
+	}
+	function reset_swap() {
+		for (var i = 0; i < 4; ++i) {
+			arrow_active[i] = 0;
+			document.getElementById('swap' + i).value = arrow_not_clicked;
+		}
+	}
+	function restore_hand() {
+		for (var i = 0; i < 4; ++i) { 
+			document.getElementById('suit' + i).value = window.localStorage.getItem('suit' + i);
+		}
+	}
+	function prob_to_colour(p, exp) {
+		p = Math.pow(p, exp);
+		return '#' + Math.round(255 * Math.sqrt(1 - p)).toString(16).padStart(2, '0') + Math.round(255 * Math.sqrt(p)).toString(16).padStart(2, '0') + "00";
+	}
+	window.onload = function() {
+		restore_hand();
+	}
+	function prob_to_cell(v, p, skip = false) { 
+		return (skip && v == 0) ? '<td style="min-width:50px" bgcolor="grey"></td>' : '<td style="min-width:50px" bgcolor="' + prob_to_colour(v, p) + '">' + (v * 100).toFixed(2) + '%</td>'
+	}
+	function make_empty_cell() {
+		return '<td bgcolor="grey"></td>';
+	}
+	function display_card_prob(card_prob, sum, my_hand) {
+		var result = '';
+		result += '<table><th></th>';
+		for (var j = 12; j >= 0; --j) result += '<th>' + card_to_str(j) + '</th>';
+		result += '</tr>';
+		for (var i = 0; i < 4; ++i) {
+			result += '<tr><td>' + suit_str[i] + '</td>';
+			for (var j = 12; j >= 0; --j) {
+				result += prob_to_cell(card_prob[i][j] / sum, 1, my_hand[i][j]);
+			}
+			result += '</tr>';
+		}
+		result += '</table>';
+
+		return result;
+	}
+	function display_hcp_prob(hcp_prob, sum, partner_low, partner_high) {
+		var result = '';
+		result += '<table><tr><th></th>';
+		for (var i = partner_low; i <= partner_high; ++i)
+			result += '<th>' + i + '</th>';
+		result += '</tr><tr><td>HCP</td>';
+		for (var i = partner_low; i <= partner_high; ++i)
+			result += prob_to_cell(hcp_prob[i] / sum, 1);
+		result += '</tr>';
+		result += '</table>';
+		return result;
+	}
+	function display_suit_pair_table(s1, s2, p, sum) {
+		var result = '<table><tr><td>' + suit_str[s2] + '\\' + suit_str[s1] + '</td>';
+		for (var i = 0; i <= 7; ++i) result += '<th><font color="' + suit_color[s1] + '">' + i + '</font></th>';
+		result += '</tr>';
+		for (var i = 0; i <= 7; ++i) {
+			result += '<tr><th><font color="' + suit_color[s2] + '">' + i + '</font></th>';
+			for (var j = 0; j <= 7; ++j) {
+				result += prob_to_cell(p[j][i] / sum, 0.7, true);
+			}
+			result += '</tr>';
+		}
+		result += '</table>';
+		return result;
+	}
+	function card_to_str(x) {
+		if (x == ace) return 'A';
+		if (x == king) return 'K';
+		if (x == queen) return 'Q';
+		if (x == jack) return 'J';
+		return (x + 2).toString();
+	}
+	function pick_random_hand() {
+		var used = init_array(4, 13);
+		var done = 0;
+		for (var i = 0; i < 4; ++i) document.getElementById('suit' + i).value = '';
+		while (done < 13) {
+			var suit = Math.floor(Math.random() * 4), rank = Math.floor(Math.random() * 13);
+			if (!used[suit][rank]) {
+				done++;
+				used[suit][rank] = 1;
+			}
+		}
+		for (var i = 0; i < 4; ++i) for (var j = 12; j >= 0; --j) if (used[i][j]) document.getElementById('suit' + i).value += card_to_str(j);
+	}
+	function pick_random_hand_with_shape() {
+		var shape_str = document.getElementById('my_shape').value;
+		var split = [];
+		var b = 0;
+		for (var i = 0; i < shape_str.length; ++i) if (shape_str[i] == '-') {
+			 split.push(shape_str.substring(b, i));
+			 b = i + 1;
+		}
+		split.push(shape_str.substring(b));
+		if (split.length == 1) {
+			split = [];
+			for (var i = 0; i < shape_str.length; ++i) split.push(shape_str[i]);
+		}
+		var error = '';
+		var sum = 0;
+		for (var i = 0; i < split.length; ++i)
+			sum += parseInt(split[i]);
+		if (isNaN(sum) || split.length != 4) error = 'can\'t parse "' + shape_str + '"';
+		else if (sum != 13) error = 'Hand contains ' + sum + ' cards';
+		if (error) {
+			alert(error);
+			return;
+		}
+		for (var i = 0; i < 4; ++i) {
+			var el = document.getElementById('suit' + i);
+			var used = new Array(13).fill(0);
+			var done = 0, need = parseInt(split[i]);
+			while (done < need) {
+				var rank = Math.floor(Math.random() * 13);
+				if (!used[rank]) {
+					used[rank] = 1;
+					done++;
+				}
+			}
+			el.value = '';
+			for (var j = 12; j >= 0; --j) if (used[j]) el.value += card_to_str(j);
+		}
+	}
+	function clear_hand() {
+		for (var i = 0; i < 4; ++i) document.getElementById('suit' + i).value = '';
+	}
+	function init_array(n, m) {
+		var result = new Array(n);
+		for (var i = 0; i < n; ++i) result[i] = new Array(m).fill(0);
+		return result;
+	}
+	var choose = init_array(14, 14);
+	for (var i = 0; i <= 13; ++i) {
+		choose[i][i] = choose[i][0] = 1;
+		for (var j = 1; j < i; ++j)
+			choose[i][j] = choose[i - 1][j] + choose[i - 1][j - 1];
+	}
+  function show_range() {
+    var el = document.getElementById('custom_range');
+    var block = document.getElementById('range');
+    if (el.checked) block.style.display=""
+    else block.style.display="none"
+  }
+  function parse_suit(s) {
+    var cards = new Array(13).fill(0)
+    for (var i = 0; i < s.length; ++i) {
+      var c = s[i].toLowerCase();
+      var which = -1
+      if (c == 'a') which = ace;
+      if (c == 'k') which = king;
+      if (c == 'q' || c == 'd') which = queen;
+      if (c == 'j' || c == 'w' || c == 'b') which = jack;
+      if (c == '1' || c == '0' || c == 't') which = ten;
+      if (c >= '2' && c <= '9') which = c.charCodeAt(0) - '2'.charCodeAt(0)
+      if (c == ' ' || c == '-' || c == '=') continue;
+      if (which == -1) throw 'Unknown card: ' + c;
+      if (which != ten && cards[which]) throw 'Card ' + c + ' occurse multiple times';
+      cards[which] = 1
+    }
+    return cards;
+  }
+	function calc_suit_combos(available_cards, length) {
+		var result = new Array(11).fill(0);
+		var available_spots = 0;
+		for (var i = 0; i <= ten; ++i)
+			available_spots += available_cards[i];
+		for (var has_ace = 0; has_ace <= available_cards[ace]; ++has_ace) //TODO: Some adjustment like singleton jack is worth 0
+			for (var has_king = 0; has_king <= available_cards[king]; ++has_king)
+				for (var has_queen = 0; has_queen <= available_cards[queen]; ++has_queen)
+					for (var has_jack = 0; has_jack <= available_cards[jack]; ++has_jack) {
+						var spots = length - has_ace - has_king - has_queen - has_jack;
+						if (spots >= 0) result[4 * has_ace + 3 * has_king + 2 * has_queen + 1 * has_jack] += choose[available_spots][spots];
+					}
+		return result;
+	}
+  function calc_hands(available_cards, shape) {
+    var result = new Array(38).fill(0);
+		result[0] = 1;
+		for (var i = 0; i < 4; ++i) {
+			var suit_combos = calc_suit_combos(available_cards[i], shape[i]);
+			var updated_result = new Array(38).fill(0);
+			for (var j = 0; j < suit_combos.length; ++j)
+				for (var k = 0; j + k < result.length; ++k)
+					updated_result[j + k] += result[k] * suit_combos[j];
+			result = updated_result;
+		}
+		return result;
+  }
+	function shape_to_str(shape) {
+		var result = '';
+		console.assert(shape.length == 4);
+		var use_hyphen = shape[0] >= 10 || shape[1] >= 10 || shape[2] >= 10 || shape[3] >= 10;
+		for (var i = 0; i < 4; ++i) {
+			result += shape[i];
+			if (i != 3 && use_hyphen) result += '-';
+		}
+		return result;
+	}
+  function calculate(force) {
+		reset_swap();
+    var output = document.getElementById('output');
+    try {
+      var result = ''
+      my_hand = [];
+      for (var i = 0; i < 4; ++i)
+        my_hand.push(parse_suit(document.getElementById('suit' + i).value));
+      total_cards = 0
+      for (var i = 0; i < 4; ++i) for (var j = 0; j < 13; ++j) total_cards += my_hand[i][j];
+      if (total_cards != 0 && total_cards != 13 && !force) throw('My hand contains ' + total_cards + ' cards <input type="submit" value="Calculate regardless" onclick="calculate(true)">');
+			save_hand();
+      partner_shapes = []
+      var partner_opening_id = -1;
+      var partner_low = -1, partner_high = -1;
+      var chosen_shape = document.getElementsByName('opening');
+      for(var i = 0; i < chosen_shape.length; i++)
+        if(chosen_shape[i].checked)
+          partner_opening_id = chosen_shape[i].value;
+      if (partner_opening_id == -1) {
+        throw('Pick partner\'s opening');
+      }
+      var chosen_str = document.getElementsByName('range')
+      for (var i = 0; i < chosen_str.length; ++i)
+        if (chosen_str[i].checked) {
+          var id = chosen_str[i].value
+          if (id == 0) {partner_low = 6; partner_high = 10;}
+          if (id == 1) {partner_low = 8; partner_high = 12;}
+          if (id == 2) {partner_low = 13; partner_high = 16;}
+          if (id == 3) {partner_low = 0; partner_high = 37;}
+          if (id == 4) {partner_low = parseInt(document.getElementsByName('low')[0].value); partner_high = document.getElementsByName('high')[0].value;}
+        }
+      if (isNaN(partner_low) || isNaN(partner_high) || partner_low == -1 || partner_high == -1) throw('Choose partner\'s strength');
+      if (partner_low > partner_high) throw('Invalid range: ' + partner_low + '-' + partner_high)
+			
+      for (var s = 0; s <= 7; ++s) for (var h = 0; s + h <= 13 && h <= 7; ++h) for (var d = 0; s + d + h <= 13 && d <= 7; ++d) {
+        var c = 13 - s - h - d;
+				if (c > 7) continue;
+        var match = 0;
+        if (partner_opening_id == 1) { //1♥
+          match = ((h <= 1 && s >= 3 && s <= 5) || (h >= 6 && s <= 3)) && ((s <= 1) + (h <= 1) + (d <= 1) + (c <= 1)) <= 1;
+        }
+        else if (partner_opening_id == 2) { //1♠
+          match = ((s <= 1 && h >= 3 && h <= 5) || (s >= 6 && h <= 3)) && ((s <= 1) + (h <= 1) + (d <= 1) + (c <= 1)) <= 1;
+        }
+        else if (partner_opening_id == 3) { //1NT
+          match = (h >= 4 && s >= 4 && (h >= 5 || s >= 5) && (h + s) <= 10) || (c >= 4 && d >= 4 && (c + d) == 10 && h >= 1 && s >= 1);
+        }
+        else if (partner_opening_id == 4) { //2♣
+          match = (h >= 3 && h <= 4 && s >= 3 && s <= 4 && (c <= 1 || d <= 1) && c <= 6 && d <= 6);
+        }
+        else if (partner_opening_id == 5) { //2♦
+          match = ((h == 5 && s == 3) || (h == 3 && s == 5)) && ((c == 4 && d == 1) || (c == 1 && d == 4));
+        }
+        else if (partner_opening_id == 6) { //2♥
+          match = (h >= 2 && s >= 2 && ((c == 5 && h == 5) || (d == 5 && s == 5) || (c == 6 && h == 4 && d == 1) || (d == 6 && s == 4 && c == 1)));
+        }
+        else if (partner_opening_id == 7) { //2♠
+          match = (h >= 2 && s >= 2 && ((c == 5 && s == 5) || (d == 5 && h == 5) || (c == 6 && s == 4 && d == 1) || (d == 6 && h == 4 && c == 1)));
+        }
+        if (match) partner_shapes.push([s, h, d, c]);
+      }
+			var processed_shapes = [];
+			var available_cards = init_array(4, 13);
+			var card_prob = init_array(4, 13);
+			for (var i = 0; i < 4; ++i) for (var j = 0; j < 13; ++j) available_cards[i][j] = 1 - my_hand[i][j];
+			var hcp_prob = new Array(38).fill(0);
+			for (var i_shape = 0; i_shape < partner_shapes.length; ++i_shape) {
+				var shape = partner_shapes[i_shape];
+				var hands_cou = calc_hands(available_cards, shape);
+				var total_cou = 0;
+				for (var i = partner_low; i <= partner_high; ++i) {
+					hcp_prob[i] += hands_cou[i];
+					total_cou += hands_cou[i];
+				}
+				var cards_prob_with_shape = init_array(4, 13);
+				for (var suit = 0; suit < 4; ++suit) for (var rank = 0; rank < 13; ++rank) if (available_cards[suit][rank]) {
+					available_cards[suit][rank] = 0;
+					var hands_with = 0;
+					var hands_without = calc_hands(available_cards, shape);
+					for (var i = partner_low; i <= partner_high; ++i)
+						hands_with += hands_cou[i] - hands_without[i];
+					card_prob[suit][rank] += hands_with;
+					cards_prob_with_shape[suit][rank] = hands_with;
+					available_cards[suit][rank] = 1;
+				}
+				processed_shapes.push([total_cou, shape, cards_prob_with_shape, hands_cou]);
+			}
+			processed_shapes.sort(function (shape1, shape2){return shape2[0] - shape1[0];});
+			var sum = 0;
+			var length_prob = init_array(4, 14);
+			for (var i = 0; i < processed_shapes.length; ++i) sum += processed_shapes[i][0];
+			var shapes_description = '<h2>Specific shapes:</h2>';
+			var shape_pair = init_array(4, 4);
+			for (var i = 0; i < 3; ++i) for (var j = i + 1; j <= 3; ++j) shape_pair[i][j] = init_array(8, 8);
+			for (var i = 0; i < processed_shapes.length; ++i) {
+				var processed = processed_shapes[i];
+				if (processed[0] == 0) continue;
+				var cards_prob_with_shape = processed[2];
+				var hcp_prob_with_shape = processed[3];
+				var loc_sum = processed[0];
+				var average_hcp = 0;
+				for (var j = partner_low; j <= partner_high; ++j)
+					average_hcp += hcp_prob_with_shape[j] * j;
+				average_hcp /= loc_sum;
+				shapes_description += '<h3>' + shape_to_str(processed[1]) + ': ' + (processed[0] * 100 / sum).toFixed(2) + '%; average HCP = ' + average_hcp.toFixed(2) + '</h3>';
+				shapes_description += display_card_prob(cards_prob_with_shape, loc_sum, my_hand);
+				shapes_description += display_hcp_prob(hcp_prob_with_shape, loc_sum, partner_low, partner_high);
+				for (var j = 0; j < 4; ++j) length_prob[j][processed[1][j]] += processed[0];
+				for (var j = 0; j < 4; ++j) for (var k = j + 1; k < 4; ++k) shape_pair[j][k][processed[1][j]][processed[1][k]] += processed[0];
+			}
+			if (sum == 0)
+				result += 'No hand matching partner opening found <br>';
+			else {
+				result += '<h2>Summary:</h2><table><tr><th></th>';
+				for (var j = 0; j <= 7; ++j) result += '<th>' + j + '</th>';
+				result += '</tr>';
+				for (var i = 0; i < 4; ++i) {
+					result += '<tr><td>' + suit_str[i] + '</td>';
+					for (var j = 0; j <= 7; ++j)
+						result += prob_to_cell(length_prob[i][j] / sum, 1);
+					result += '</tr>';
+				}
+				result += '</table>';
+				var per_row = Math.max(1, Math.min(3, Math.floor(window.innerWidth / 400)));
+				var tables = [];
+				for (var i = 0; i < 4; ++i) for (var j = i + 1; j < 4; ++j)
+					tables.push(display_suit_pair_table(i, j, shape_pair[i][j], sum));
+				result += '<table>';
+				for (var i = 0; i < 6; ++i) {
+					if (i % per_row == 0)
+						result += '<tr>';
+					result += '<td>' + tables[i] + '</td>';
+					if ((i + 1) % per_row == 0)
+						result += '</tr>';
+				}
+				result += '</table>';
+				result += display_card_prob(card_prob, sum, my_hand);
+				result += display_hcp_prob(hcp_prob, sum, partner_low, partner_high);
+				result += shapes_description;
+			}
+      output.innerHTML = result
+    }
+    catch(e) {
+      output.innerHTML = e
+    }
+  }
+  </script>
+</head>
+<body style="background-color:#fad46b;color:black">
+<table style="table-layout: fixed;">
+    <col width="300px" />
+    <col width="300px" />
+    <col width="300px" />
+
+<tr>
+<th> My hand </th>
+<th> Partner's opening </th>
+<th> Partner's range </th>
+</tr>
+<tr>
+<td valign="top">
+<font color="blue">♠</font><input type="text" id="suit0"><input type="submit" id="swap0" value="&#x21b6;" onclick="run_swap(0)"><br>
+<font color="red">♥</font><input type="text" id="suit1"><input type="submit" id="swap1" value="&#x21b6;" onclick="run_swap(1)"><br>
+<font color="#ff6600">♦</font><input type="text" id="suit2"><input type="submit" id="swap2" value="&#x21b6;" onclick="run_swap(2)"><br>
+<font color="#005416">♣</font><input type="text" id="suit3"><input type="submit" id="swap3" value="&#x21b6;" onclick="run_swap(3)"><br>
+<input type="submit" value="Deal a random hand" onclick="pick_random_hand()"><br>
+<input type="submit" value="Clear the hand" onclick="clear_hand()"><br>
+<input type="submit" value="Deal a random hand with given shape" onclick="pick_random_hand_with_shape()"><input type="text" id="my_shape">
+</td>
+<td valign="top">
+<input type="radio" name="opening" value="1"> 1<font color="red">♥</font><br>
+<input type="radio" name="opening" value="2"> 1<font color="blue">♠</font><br>
+<input type="radio" name="opening" value="3"> 1NT<br>
+<input type="radio" name="opening" value="4"> 2<font color="#005416">♣</font><br>
+<input type="radio" name="opening" value="5"> 2<font color="#ff6600">♦</font><br>
+<input type="radio" name="opening" value="6"> 2<font color="red">♥</font><br>
+<input type="radio" name="opening" value="7"> 2<font color="blue">♠</font><br>
+</td>
+<td valign="top">
+<input type="radio" name="range" value="0" onclick="show_range()"> 6-10 <br>
+<input type="radio" name="range" value="1" onclick="show_range()"> 8-12 <br>
+<input type="radio" name="range" value="2" onclick="show_range()"> 13-16 <br>
+<input type="radio" name="range" value="3" onclick="show_range()"> 0-37 <br>
+<input type="radio" name="range" value="4" onclick="show_range()" id="custom_range"> custom <br>
+<div id="range" style="display: none;"> <input type="number" name="low" min="0" max="37"> - <input type="number" name="high" min="0" max="37"> </div>
+</td>
+</tr>
+</table>
+<div><input type="submit" value="Calculate" onclick="calculate(false)"></div>
+<div id="output"></div>
+</body>
+</html>
