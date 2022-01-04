@@ -262,8 +262,9 @@
           if (id == 0) {partner_low = 6; partner_high = 10;}
           if (id == 1) {partner_low = 8; partner_high = 12;}
           if (id == 2) {partner_low = 13; partner_high = 16;}
-          if (id == 3) {partner_low = 0; partner_high = 37;}
-          if (id == 4) {partner_low = parseInt(document.getElementsByName('low')[0].value); partner_high = document.getElementsByName('high')[0].value;}
+          if (id == 3) {partner_low = 13; partner_high = 18;}
+          if (id == 4) {partner_low = 0; partner_high = 37;}
+          if (id == 5) {partner_low = parseInt(document.getElementsByName('low')[0].value); partner_high = document.getElementsByName('high')[0].value;}
         }
       if (isNaN(partner_low) || isNaN(partner_high) || partner_low == -1 || partner_high == -1) throw('Choose partner\'s strength');
       if (partner_low > partner_high) throw('Invalid range: ' + partner_low + '-' + partner_high)
@@ -464,8 +465,9 @@
 <input type="radio" name="range" value="0" onclick="show_range()"> 6-10 <br>
 <input type="radio" name="range" value="1" onclick="show_range()"> 8-12 <br>
 <input type="radio" name="range" value="2" onclick="show_range()"> 13-16 <br>
-<input type="radio" name="range" value="3" onclick="show_range()"> 0-37 <br>
-<input type="radio" name="range" value="4" onclick="show_range()" id="custom_range"> custom <br>
+<input type="radio" name="range" value="3" onclick="show_range()"> 13-18 <br>
+<input type="radio" name="range" value="4" onclick="show_range()"> 0-37 <br>
+<input type="radio" name="range" value="5" onclick="show_range()" id="custom_range"> custom <br>
 <div id="range" style="display: none;"> <input type="number" name="low" min="0" max="37"> - <input type="number" name="high" min="0" max="37"> </div>
 </td>
 </tr>
